@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinylol Java - Sonic Style</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #222;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        #juegoCanvas {
+            border: 2px solid white;
+            display: block;
+        }
+        #controles-personalizacion {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            background-color: #333;
+            border-radius: 8px;
+            border: 1px solid #555;
+            width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .control-grupo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .control-grupo label, .control-grupo input[type="number"] {
+            font-size: 0.95em;
+        }
+        input[type="color"], select, input[type="number"] {
+            width: 100px;
+            height: 30px;
+            padding: 0 5px;
+            border: 1px solid #666;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        /* Estilos específicos para el editor de nivel */
+        #editor-buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+        .editor-activo {
+            border: 2px solid yellow !important;
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="titulo-juego">Tinylol Java - Sonic Style</h1>
+
+    <div id="controles-personalizacion" style="display: none;">
+        <h2>Personalización y Editor</h2>
+
+        <div class="control-grupo">
+            <label for="maxVelocidad">Máx. Velocidad Base</label>
+            <input type="number" id="maxVelocidad" value="5" min="1" max="20">
+        </div>
+         <div class="control-grupo">
+            <label for="aceleracion">Aceleración Base</label>
+            <input type="number" id="aceleracion" value="0.2" min="0.1" max="1" step="0.1">
+        </div>
+
+        <div class="control-grupo">
+            <label for="colorJugador">Color (Fallback)</label>
+            <input type="color" id="colorJugador" value="#00FF00">
+        </div>
+        <div class="control-grupo">
+            <label for="colorFondo">Fondo</label>
+            <input type="color" id="colorFondo" value="#444444">
+        </div>
+
+        <h3>Editor de Nivel (Click en el Canvas)</h3>
+        <div id="editor-buttons">
+            <button id="btn-add-platform">Añadir Plataforma</button>
+            <button id="btn-remove-platform">Borrar Plataforma</button>
+        </div>
+        
+        <button id="btnVolver">Volver al Juego / Menú</button>
+    </div>
+
+    <canvas id="juegoCanvas" width="800" height="400"></canvas>
+    
+    <script>
+        // ----------------------------------------------------
+        // 1. INICIALIZACIÓN, ESTADO Y OBJETOS
+        // ----------------------------------------------------
+        const canvas = document.getElementById('juegoCanvas');
+        const ctx = canvas.getContext('2d');
+        const ANCHO = canvas.width;
+        const ALTO = canvas.height;
+        
+        // Elementos del DOM
+        const controlesDiv = document.getElementById('controles-personalizacion');
+        const btnVolver = document.getElementById('btnVolver');
+        const inputColorFondo = document.getElementById('colorFondo');
+        const inputColorJugador = document.getElementById('colorJugador');
+        const inputMaxVelocidad = document.getElementById('maxVelocidad');
+        const inputAceleracion = document.getElementById('aceleracion');
+        const btnAddPlatform = document.getElementById('btn-add-platform');
+        const btnRemovePlatform = document.getElementById('btn-remove-platform');
+
+        // Sprite y Animación
+        const playerSprite = new Image();
+        playerSprite.src = 'player.png'; // **Asegúrate de tener esta imagen**
+        let spriteLoaded = false;
+        playerSprite.onload = () => { spriteLoaded = true; };
+        
+        const FRAME_WIDTH = 32;  // Ancho de un frame en el spritesheet
+        const FRAME_HEIGHT = 32; // Alto de un frame en el spritesheet
+        const TILE_SIZE = 30;    // Tamaño al dibujar en el canvas
+
+        let currentFrame = 0;
+        let frameDelay = 0;
+        const FRAMES_PER_ANIMATION = 4; // Asumimos 4 frames de animación de carrera
+
+        // Control de estado
+        let estadoJuego = 'INICIO'; // Posibles: 'INICIO', 'JUGANDO', 'PAUSA'
+        let modoEditor = null; // Posibles: null, 'ADD', 'REMOVE'
+
+        // Variables de personalización
+        let colorFondo = inputColorFondo.value;
+        let colorJugador = inputColorJugador.value; // Color de fallback
+        
+        // *NUEVO: Variables de física y control*
+        let BASE_MAX_SPEED = parseFloat(inputMaxVelocidad.value);
+        let BASE_ACCELERATION = parseFloat(inputAceleracion.value);
+        const FRICTION = 0.9;
+        const TURBO_FACTOR = 2.0;
+        const GRAVEDAD = 0.6;
+        const VELOCIDAD_SALTO = -12;
+
+        // Objeto Jugador
+        let jugador = {
+            x: 50,
+            y: ALTO - TILE_SIZE, 
+            ancho: TILE_SIZE,
+            alto: TILE_SIZE,
+            dx: 0, 
+            dy: 0,
+            enElSuelo: false,
+            mirandoDerecha: true,
+            turboActivo: false
+        };
+
+        // *NUEVO: Niveles (Múltiples conjuntos de plataformas)*
+        const niveles = [
+            // Nivel 0 (Base/Inicio)
+            [
+                { x: 0, y: ALTO - 20, ancho: ANCHO, alto: 20 }, // Suelo fijo
+                { x: 100, y: ALTO - 80, ancho: 150, alto: 10 },
+                { x: 350, y: ALTO - 150, ancho: 100, alto: 10 },
+                { x: 500, y: ALTO - 250, ancho: 200, alto: 10 }
+            ],
+            // Nivel 1 (Simple)
+            [
+                { x: 0, y: ALTO - 20, ancho: ANCHO, alto: 20 },
+                { x: 150, y: ALTO - 100, ancho: 100, alto: 10 },
+                { x: 400, y: ALTO - 180, ancho: 150, alto: 10 }
+            ],
+            // Nivel 2 (Con salto largo)
+            [
+                { x: 0, y: ALTO - 20, ancho: 200, alto: 20 },
+                { x: 600, y: ALTO - 20, ancho: 200, alto: 20 },
+                { x: 300, y: ALTO - 150, ancho: 50, alto: 10 }
+            ]
+        ];
+        let nivelActual = 0;
+        let plataformas = niveles[nivelActual];
+
+        // Estado de las teclas
+        let teclas = {
+            izquierda: false,
+            derecha: false,
+            salto: false,
+            turbo: false // Nuevo: Tecla de turbo
+        };
+
+        // ----------------------------------------------------
+        // 2. LÓGICA DEL JUEGO (Física Sonic-like)
+        // ----------------------------------------------------
+        
+        function verificarColision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.ancho &&
+                   rect1.x + rect1.ancho > rect2.x &&
+                   rect1.y < rect2.y + rect2.alto &&
+                   rect1.y + rect1.alto > rect2.y;
+        }
+
+        function actualizar() {
+            if (estadoJuego !== 'JUGANDO') return;
+            
+            // Determinar velocidad y aceleración basada en personalización y turbo
+            let maxSpeed = BASE_MAX_SPEED * (teclas.turbo ? TURBO_FACTOR : 1);
+            let acceleration = BASE_ACCELERATION;
+
+            // 1. Aplicar Gravedad
+            if (!jugador.enElSuelo) { jugador.dy += GRAVEDAD; }
+
+            // 2. Movimiento Horizontal (Aceleración / Fricción)
+            if (teclas.izquierda) {
+                jugador.dx -= acceleration;
+                jugador.mirandoDerecha = false;
+            } else if (teclas.derecha) {
+                jugador.dx += acceleration;
+                jugador.mirandoDerecha = true;
+            } else if (jugador.enElSuelo) {
+                // Aplicar fricción solo en el suelo
+                jugador.dx *= FRICTION; 
+            }
+
+            // Limitar velocidad (cap)
+            jugador.dx = Math.max(-maxSpeed, Math.min(maxSpeed, jugador.dx));
+            
+            // Detener por completo si la velocidad es muy baja
+            if (jugador.enElSuelo && Math.abs(jugador.dx) < 0.1) {
+                jugador.dx = 0;
+            }
+
+            // 3. Salto
+            if (teclas.salto && jugador.enElSuelo) {
+                jugador.dy = VELOCIDAD_SALTO;
+                jugador.enElSuelo = false;
+                teclas.salto = false;
+            }
+
+            // 4. Actualizar Posición
+            jugador.x += jugador.dx;
+            jugador.y += jugador.dy;
+            
+            jugador.enElSuelo = false;
+
+            // 5. Colisiones con Plataformas
+            plataformas.forEach(plataforma => {
+                if (verificarColision(jugador, plataforma)) {
+                    if (jugador.dy > 0) { // Aterrizaje
+                        jugador.y = plataforma.y - jugador.alto; 
+                        jugador.dy = 0; 
+                        jugador.enElSuelo = true;
+                    }
+                    else if (jugador.dy < 0) { // Chocar la cabeza
+                        jugador.y = plataforma.y + plataforma.alto;
+                        jugador.dy = 0; 
+                    }
+                    // También manejar colisiones laterales para evitar atravesar, aunque es menos "Sonic-like"
+                }
+            });
+
+            // 6. Límites y Reinicio/Cambio de Nivel
+            if (jugador.x < 0) jugador.x = 0;
+            if (jugador.x + jugador.ancho > ANCHO) {
+                // Pasar al siguiente nivel
+                siguienteNivel();
+            }
+
+            if (jugador.y > ALTO) {
+                // Caída al vacío: Reiniciar nivel actual
+                reiniciarPosicionJugador();
+            }
+            
+            // 7. Animación Sprite
+            actualizarAnimacion();
+        }
+        
+        function reiniciarPosicionJugador() {
+            jugador.x = 50;
+            jugador.y = ALTO - TILE_SIZE;
+            jugador.dy = 0;
+            jugador.dx = 0;
+            jugador.enElSuelo = false;
+        }
+        
+        function siguienteNivel() {
+            nivelActual++;
+            if (nivelActual >= niveles.length) {
+                nivelActual = 0; // Vuelve al primer nivel o muestra pantalla de victoria
+            }
+            plataformas = JSON.parse(JSON.stringify(niveles[nivelActual])); // Clonar el array de plataformas
+            reiniciarPosicionJugador();
+        }
+
+        // ----------------------------------------------------
+        // 3. ANIMACIÓN Y DIBUJO (Sprites)
+        // ----------------------------------------------------
+        
+        function actualizarAnimacion() {
+            // Aumentar el retraso del frame
+            frameDelay++;
+            
+            // Controlar la velocidad de la animación (más rápido si corre)
+            let frameRate = 10; 
+            if (Math.abs(jugador.dx) > 0.1) {
+                frameRate = Math.max(2, 10 - Math.floor(Math.abs(jugador.dx) * 1.5)); // Más rápido cuanto más corre
+            }
+            
+            if (jugador.enElSuelo && Math.abs(jugador.dx) > 0.1 && frameDelay >= frameRate) {
+                // Cambiar al siguiente frame de carrera
+                currentFrame = (currentFrame + 1) % FRAMES_PER_ANIMATION; 
+                frameDelay = 0;
+            } else if (!jugador.enElSuelo) {
+                // Usar un frame fijo de salto (ej. frame 4 en la spritesheet)
+                currentFrame = 4;
+            } else if (jugador.enElSuelo && Math.abs(jugador.dx) <= 0.1) {
+                // Usar frame fijo de quieto (ej. frame 0)
+                currentFrame = 0;
+            }
+        }
+
+
+        function dibujar() {
+            // 1. Dibujar Fondo
+            ctx.fillStyle = colorFondo;
+            ctx.fillRect(0, 0, ANCHO, ALTO);
+            
+            // Mostrar nivel actual
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Nivel: ${nivelActual}`, 10, 20);
+
+            // 2. Dibujar Plataformas (Tierra)
+            ctx.fillStyle = '#1e7b30'; 
+            plataformas.forEach(plataforma => {
+                ctx.fillRect(plataforma.x, plataforma.y, plataforma.ancho, plataforma.alto);
+            });
+
+            // 3. Dibujar Jugador (Usando sprites o fallback)
+            ctx.save();
+            ctx.translate(jugador.x + jugador.ancho / 2, jugador.y + jugador.alto / 2); // Mover el origen al centro
+
+            if (!jugador.mirandoDerecha) {
+                ctx.scale(-1, 1); // Voltear horizontalmente
+            }
+            
+            // Dibujar el sprite
+            if (spriteLoaded) {
+                 // ctx.drawImage(imagen, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+                 ctx.drawImage(
+                    playerSprite, 
+                    currentFrame * FRAME_WIDTH, // sx: Posición x del frame en la spritesheet
+                    0,                         // sy: Posición y del frame (asumimos una sola fila)
+                    FRAME_WIDTH, 
+                    FRAME_HEIGHT, 
+                    -jugador.ancho / 2,         // dx: Destino x (ajustado por la traslación)
+                    -jugador.alto / 2,          // dy: Destino y (ajustado por la traslación)
+                    jugador.ancho, 
+                    jugador.alto
+                );
+            } else {
+                // Fallback: Dibujar un cuadrado simple si la imagen no carga
+                ctx.fillStyle = colorJugador; 
+                ctx.fillRect(-jugador.ancho / 2, -jugador.alto / 2, jugador.ancho, jugador.alto);
+            }
+            ctx.restore(); // Restaurar la matriz de transformación
+            
+            // 4. Dibujar Menús
+            if (estadoJuego === 'INICIO') {
+                dibujarMenuInicio();
+                controlesDiv.style.display = 'none'; 
+            } else if (estadoJuego === 'PAUSA') {
+                dibujarMenuPausa();
+                controlesDiv.style.display = 'flex';
+            } else {
+                controlesDiv.style.display = 'none';
+            }
+        }
+        
+        function dibujarMenuInicio() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, ANCHO, ALTO);
+
+            ctx.fillStyle = 'white';
+            ctx.font = '48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Tinylol Java - Rápido!', ANCHO / 2, ALTO / 3);
+            
+            ctx.font = '24px Arial';
+            ctx.fillText('Presiona ESPACIO o ENTER para empezar', ANCHO / 2, ALTO / 2);
+            
+            ctx.font = '16px Arial';
+            ctx.fillText('Controles: A/D para mover, ESPACIO para saltar, SHIFT para turbo', ANCHO / 2, ALTO / 2 + 40);
+             ctx.fillText('Presiona P para Personalizar/Editor', ANCHO / 2, ALTO / 2 + 70);
+        }
+
+        function dibujarMenuPausa() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, ANCHO, ALTO);
+
+            ctx.fillStyle = 'white';
+            ctx.font = '48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('PAUSA', ANCHO / 2, ALTO / 2);
+            
+            ctx.font = '24px Arial';
+            ctx.fillText('Modifica la velocidad y el nivel. Vuelve con P.', ANCHO / 2, ALTO / 2 + 50);
+        }
+
+        // ----------------------------------------------------
+        // 4. EVENTOS (Teclado y Controles)
+        // ----------------------------------------------------
+        
+        document.addEventListener('keydown', (e) => {
+            if (estadoJuego === 'JUGANDO' || estadoJuego === 'PAUSA') {
+                switch (e.code) {
+                    case 'ArrowLeft': case 'KeyA': teclas.izquierda = true; break;
+                    case 'ArrowRight': case 'KeyD': teclas.derecha = true; break;
+                    case 'Space': case 'ArrowUp': case 'KeyW': 
+                        if (estadoJuego === 'JUGANDO') { teclas.salto = true; }
+                        break;
+                    case 'ShiftLeft': case 'ShiftRight': // NUEVO: TURBO
+                        teclas.turbo = true;
+                        break;
+                    case 'KeyP': 
+                        if (estadoJuego === 'JUGANDO') { estadoJuego = 'PAUSA'; modoEditor = null; actualizarEstiloBotones(); } 
+                        else if (estadoJuego === 'PAUSA') { estadoJuego = 'JUGANDO'; modoEditor = null; actualizarEstiloBotones(); }
+                        break;
+                }
+            } else if (estadoJuego === 'INICIO') {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    estadoJuego = 'JUGANDO';
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.code) {
+                case 'ArrowLeft': case 'KeyA': teclas.izquierda = false; break;
+                case 'ArrowRight': case 'KeyD': teclas.derecha = false; break;
+                case 'ShiftLeft': case 'ShiftRight': // NUEVO: Desactivar TURBO
+                    teclas.turbo = false;
+                    break;
+            }
+        });
+
+        // Eventos de Personalización
+        inputColorFondo.addEventListener('input', (e) => { colorFondo = e.target.value; });
+        inputColorJugador.addEventListener('input', (e) => { colorJugador = e.target.value; });
+        inputMaxVelocidad.addEventListener('change', (e) => { BASE_MAX_SPEED = parseFloat(e.target.value); });
+        inputAceleracion.addEventListener('change', (e) => { BASE_ACCELERATION = parseFloat(e.target.value); });
+        
+        btnVolver.addEventListener('click', () => {
+             if (estadoJuego === 'PAUSA' || estadoJuego === 'INICIO') {
+                estadoJuego = 'JUGANDO';
+                modoEditor = null;
+                actualizarEstiloBotones();
+            }
+        });
+
+        // Eventos del Editor de Nivel (igual que antes)
+        function actualizarEstiloBotones() {
+            btnAddPlatform.classList.remove('editor-activo');
+            btnRemovePlatform.classList.remove('editor-activo');
+            if (modoEditor === 'ADD') {
+                btnAddPlatform.classList.add('editor-activo');
+            } else if (modoEditor === 'REMOVE') {
+                btnRemovePlatform.classList.add('editor-activo');
+            }
+        }
+
+        btnAddPlatform.addEventListener('click', () => {
+            modoEditor = (modoEditor === 'ADD') ? null : 'ADD';
+            actualizarEstiloBotones();
+        });
+
+        btnRemovePlatform.addEventListener('click', () => {
+            modoEditor = (modoEditor === 'REMOVE') ? null : 'REMOVE';
+            actualizarEstiloBotones();
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (estadoJuego !== 'PAUSA' || modoEditor === null) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (modoEditor === 'ADD') {
+                const nuevaPlataforma = {
+                    x: mouseX - 50, 
+                    y: mouseY - 5,  
+                    ancho: 100,
+                    alto: 10
+                };
+                // Añadir al array del nivel actual
+                niveles[nivelActual].push(nuevaPlataforma);
+                plataformas = niveles[nivelActual];
+
+            } else if (modoEditor === 'REMOVE') {
+                for (let i = niveles[nivelActual].length - 1; i >= 1; i--) {
+                    const p = niveles[nivelActual][i];
+                    if (mouseX >= p.x && mouseX <= p.x + p.ancho &&
+                        mouseY >= p.y && mouseY <= p.y + p.alto) {
+                        niveles[nivelActual].splice(i, 1);
+                        plataformas = niveles[nivelActual]; // Actualizar referencia
+                        break; 
+                    }
+                }
+            }
+        });
+
+
+        // ----------------------------------------------------
+        // 5. BUCLE PRINCIPAL
+        // ----------------------------------------------------
+        
+        function loopJuego() {
+            actualizar();
+            dibujar();
+            requestAnimationFrame(loopJuego);
+        }
+
+        loopJuego();
+
+    </script>
+</body>
+</html>

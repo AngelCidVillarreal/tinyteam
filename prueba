@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piano</title>
+</head>
+<style>
+  section {
+    display: flex;
+    justify-content: center;
+  }
+
+  button {
+    height: 110px;
+    width: 40px;
+    font-size: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: end;
+    padding-bottom: 5px;
+    background: whitesmoke;
+    border-end-start-radius: 7px;
+    border-end-end-radius: 7px;
+    border: 2px solid black;
+    margin: -1px;
+  }
+  button:nth-child(even) {
+  background: black;
+  color: white;
+  height: 70px;
+  width: 30px;
+}
+button:hover {
+  background-color: orangered;
+}
+button:active {
+  background-color: red;
+}
+div button:nth-child(even):hover {
+  background-color: brown;
+}
+div button:nth-child(even):active {
+  background-color: maroon;
+}
+
+
+
+</style>
+<body>
+
+  <section>
+    <button>DO</button>
+    <button>DO#</button>
+    <button>RE</button>
+    <button>MI</button>
+    <button>FA</button>
+    <button>FA#</button>
+    <button>SOL</button>
+    <button>SOL#</button>
+    <button>LA</button>
+    <button>LA#</button>
+    <button>SI</button>
+  </section>
+</body>
+</html>
