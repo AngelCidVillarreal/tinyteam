@@ -5,153 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TinyTeam</title>
     <link rel="icon" href="img/logo tinyteam.jpeg">
-    <style>
-        /* --- 🎨 Variables de Personalización (Espacial) --- */
-        :root {
-            /* Colores */
-            --color-principal: #00bcd4; /* Cian Neón - ¡Cámbialo! */
-            --color-secundario: #33ff00; /* Magenta Neón para acentos */
-            --color-fondo: #0a192f;     /* Azul Oscuro (Espacio) */
-            --color-texto: #e5f4e3;     /* Blanco/Verde Pálido */
-            --color-tarjeta: #1a3250;   /* Azul Oscuro Metálico */
-            --color-borde: #2c4a6b;     /* Borde de tarjeta */
-
-            /* Tipografía */
-            --fuente-titulo: 'Orbitron', monospace; /* Fuente futurista */
-            --fuente-cuerpo: 'Roboto Mono', monospace;
-        }
-
-        /* --- Estilos Generales --- */
-        body {
-            font-family: var(--fuente-cuerpo);
-            color: var(--color-texto);
-            margin: 0;
-            line-height: 1.8;
-            text-align: center;
-
-            /* --- NUEVO FONDO DE IMAGEN --- */
-            background-image: url(img/unnamed.png); /* ¡Asegúrate que el nombre y la ruta sean correctos! */
-            background-size: cover; /* Cubre todo el fondo sin distorsionar mucho */
-            background-attachment: fixed; /* Mantiene la imagen fija al hacer scroll */
-            background-position: center center; /* Centra la imagen */
-            background-repeat: no-repeat; /* Evita que la imagen se repita */
-            /* --- FIN NUEVO FONDO DE IMAGEN --- */
-        }
-
-        /* Fuentes si están disponibles (Mejoras estéticas) */
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Roboto+Mono:wght@400&display=swap');
-        h1, h2, h3 { font-family: var(--fuente-titulo); }
-
-
-        header {
-            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparente para ver el fondo */
-            padding: 50px 20px;
-            border-bottom: 3px solid var(--color-secundario);
-        }
-
-        header h1 {
-            font-size: 3.5em;
-            text-shadow: 0 0 15px var(--color-principal); /* Efecto Neón */
-            letter-spacing: 5px;
-            margin-bottom: 5px;
-        }
-
-        header p {
-            font-size: 1.1em;
-            color: var(--color-principal);
-        }
-
-        /* --- Contenedor de Juegos (Grid) --- */
-        .juegos-contenedor {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 40px;
-            padding: 60px 20px;
-            max-width: 1300px;
-            margin: 0 auto;
-        }
-
-        /* --- Estilo de Tarjeta de Juego (Unidad Modular) --- */
-        .tarjeta-juego {
-            background-color: var(--color-tarjeta);
-            border: 1px solid var(--color-borde);
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 0 20px rgba(0, 188, 212, 0.2); /* Brillo */
-            transition: transform 0.4s ease, box-shadow 0.4s ease;
-            text-align: left;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .tarjeta-juego:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 0 30px var(--color-principal), 0 0 5px rgba(255, 255, 255, 0.5);
-            border: 1px solid var(--color-principal);
-        }
-
-        .tarjeta-juego h3 {
-            color: var(--color-principal);
-            font-size: 2em;
-            margin-top: 0;
-            border-bottom: 2px dashed var(--color-borde);
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-
-        .tarjeta-juego p {
-            font-size: 1em;
-            color: var(--color-texto);
-            margin-bottom: 25px;
-        }
-
-        .tarjeta-juego .enlace-juego {
-            display: block; /* Ocupa todo el ancho */
-            background-color: var(--color-secundario);
-            color: var(--color-fondo);
-            text-decoration: none;
-            padding: 12px;
-            border-radius: 4px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: background-color 0.3s ease, transform 0.2s;
-            text-align: center;
-        }
-
-        .tarjeta-juego .enlace-juego:hover {
-            background-color: #ff3399; /* Tono más claro */
-            transform: scale(1.02);
-        }
-
-        /* Etiqueta de estado */
-        .estado {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background-color: var(--color-principal);
-            color: var(--color-fondo);
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            font-weight: bold;
-            font-family: var(--fuente-cuerpo);
-        }
-
-        .estado.desarrollo { background-color: #ffc107; } /* Amarillo para desarrollo */
-        .estado.beta { background-color: #ff007f; } /* Magenta para Beta */
-
-
-        /* --- Pie de Página --- */
-        footer {
-            background-color: rgba(0, 0, 0, 0.7);
-            color: var(--color-principal);
-            padding: 15px 0;
-            margin-top: 40px;
-            font-size: 0.8em;
-            border-top: 1px dashed var(--color-principal);
-        }
-    </style>
+    <link rel="stylesheet" href="index.css">
 </head>
 <body>
 
@@ -166,7 +20,7 @@
             <span class="estado">terminado</span>
             <h3>Tinylol Colors</h3>
             <p><img src="img/tinylolcolors mejorad.jpg" width="350" height="200"></p>
-            <a href="https://play.bloxels.com/arcade/44803550" class="enlace-juego" target="_blank">INICIAR JUEGO »</a>
+            <a href="https://play.bloxels.com/arcade/44803550" class="enlace-juego" target="_blank">INICIAR JUEGO </a>
         </div>
 
         <div class="tarjeta-juego">
@@ -174,6 +28,7 @@
             <h3>Tinylol UNLEASHEAD</h3>
             <p><img src="img/tinylol unleashed mejorada.jpg"width="350" height="200"></p>
             <a href="https://play.bloxels.com/arcade/95604719" class="enlace-juego" target="_blank">INICIAR JUEGO</a>
+            <iframe width="350" height="200" src="https://www.youtube.com/embed/T4G4lWkqkZ4?si=Q17YXVboXjkQpI8U" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
         </div>
 
         <div class="tarjeta-juego">
@@ -181,6 +36,7 @@
             <h3>Tinylol Forces</h3>
             <p><img src="img/tinylol Forces.jpg"width="350" height="200"></p>
             <a href="URL_DE_LA_BETA_DE_TU_JUEGO_AQUI" class="enlace-juego" target="_blank">VER AVANCES</a>
+            
         </div>
 
     </main>
